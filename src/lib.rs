@@ -3,7 +3,7 @@
 //! Sample CLI Rust は、Rustで作成したサンプルのRustCLIアプリケーションです。
 
 use dialoguer::{console::Term, theme::ColorfulTheme, Input, Select};
-use std::error::Error;
+use std::{error::Error, process::Command};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -16,14 +16,22 @@ struct Opt {
     #[structopt(short, long)]
     execute: bool,
 }
+impl Opt {
+    /// デバッグモードの場合にのみ実行する
+    fn debug<F>(&self, f: F)
+    where
+        F: FnOnce(),
+    {
+        if self.debug {
+            f();
+        }
+    }
+}
 
 pub fn run() -> Result<(), Box<dyn Error>> {
     // コマンドライン引数の解析
     let opt = Opt::from_args();
-
-    if opt.debug {
-        println!("{:#?}", opt);
-    }
+    opt.debug(|| println!("{:#?}", opt));
 
     // プレフィックス選択
     let prefiexes = vec![
@@ -87,6 +95,22 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     if !opt.execute {
         return Ok(());
     };
+
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(["/C", git_command.as_str()])
+            .output()
+    } else {
+        Command::new("sh")
+            .arg("-c")
+            .arg(git_command.as_str())
+            .output()
+    };
+    if let Err(e) = output {
+        return Err(From::from(format!("コマンド実行エラー: {}", e)));
+    } else {
+        println!("新しいブランチを作成しました: {}", branch_name);
+    }
 
     Ok(())
 }
