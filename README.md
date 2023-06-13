@@ -2,6 +2,8 @@
 
 > gitブランチ名作成コマンドラインツール
 
+![DEMO](assets/sample-cli-rust-demo.gif)
+
 ## Usage
 
 ```bash
