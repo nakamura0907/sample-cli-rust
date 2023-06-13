@@ -12,7 +12,6 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 
     // gitコマンド生成
     let branch_info = input_branch_into()?;
-    let branch_name = branch_info.generate_branch_name();
     let git_command = branch_info.generate_git_command();
 
     println!("コマンド: $ {}", git_command);
@@ -21,7 +20,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     if !opt.execute {
         return Ok(());
     };
-    execute_git_command(&branch_name, &git_command)?;
+    execute_git_command(&git_command)?;
 
     Ok(())
 }
@@ -141,7 +140,7 @@ fn input_branch_into() -> Result<BranchInfo, Box<dyn Error>> {
 }
 
 /// gitコマンドを実行する
-fn execute_git_command(branch_name: &str, git_command: &str) -> Result<(), Box<dyn Error>> {
+fn execute_git_command(git_command: &str) -> Result<(), Box<dyn Error>> {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd").args(["/C", git_command]).output()
     } else {
@@ -149,9 +148,15 @@ fn execute_git_command(branch_name: &str, git_command: &str) -> Result<(), Box<d
     };
 
     if let Err(e) = output {
-        return Err(From::from(format!("コマンド実行エラー: {}", e)));
+        return Err(From::from(format!("{}", e)));
     }
-    println!("新しいブランチを作成しました: {}", branch_name);
+    if let Ok(o) = output {
+        let std = String::from_utf8_lossy(&o.stderr).replace("\n", "");
+        if !o.status.success() {
+            return Err(From::from(format!("{:#?}", std)));
+        }
+        println!("コマンド実行結果: {:#?}", std);
+    }
 
     Ok(())
 }
