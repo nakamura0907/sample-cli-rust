@@ -2,18 +2,9 @@
 name = "sample-cli-rust"
 version = "1.0.0"
 edition = "2021"
-default-run = "main"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 dialoguer = "0.10.4"
 structopt = "0.3"
-
-[[bin]]
-name = "main"
-path = "src/main.rs"
-
-[[bin]]
-name = "version"
-path = "scripts/version.rs"
