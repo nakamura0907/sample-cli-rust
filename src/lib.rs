@@ -20,7 +20,8 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     if !opt.execute {
         return Ok(());
     };
-    execute_git_command(&git_command)?;
+    let output = execute_git_command(&git_command)?;
+    println!("コマンド実行結果: {:#?}", output);
 
     Ok(())
 }
@@ -140,25 +141,24 @@ fn input_branch_into() -> Result<BranchInfo, Box<dyn Error>> {
 }
 
 /// gitコマンドを実行する
-fn execute_git_command(git_command: &str) -> Result<(), Box<dyn Error>> {
+fn execute_git_command(git_command: &str) -> Result<String, Box<dyn Error>> {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd").args(["/C", git_command]).output()
     } else {
         Command::new("sh").arg("-c").arg(git_command).output()
     };
 
-    if let Err(e) = output {
-        return Err(From::from(format!("{}", e)));
-    }
-    if let Ok(o) = output {
-        let std = String::from_utf8_lossy(&o.stderr).replace("\n", "");
-        if !o.status.success() {
-            return Err(From::from(format!("{:#?}", std)));
-        }
-        println!("コマンド実行結果: {:#?}", std);
-    }
+    match output {
+        Err(e) => Err(From::from(format!("{}", e))),
+        Ok(o) => {
+            let std = String::from_utf8_lossy(&o.stderr).replace("\n", "");
+            if !o.status.success() {
+                return Err(From::from(format!("{:#?}", std)));
+            }
 
-    Ok(())
+            return Ok(std);
+        }
+    }
 }
 
 #[cfg(test)]
