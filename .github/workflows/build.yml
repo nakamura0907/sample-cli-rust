@@ -13,11 +13,14 @@ jobs:
         target:
           - x86_64-apple-darwin
           - aarch64-apple-darwin
+          - linux-x86_64
         include:
           - target: x86_64-apple-darwin
             os: macos-latest
           - target: aarch64-apple-darwin
             os: macos-latest
+          - target: linux-x86_64
+            os: ubuntu-latest
 
     runs-on: ${{ matrix.os }}
     outputs:
@@ -94,11 +97,14 @@ jobs:
         target:
           - x86_64-apple-darwin
           - aarch64-apple-darwin
+          - linux-x86_64
         include:
           - target: x86_64-apple-darwin
             os: macos-latest
           - target: aarch64-apple-darwin
             os: macos-latest
+          - target: linux-x86_64
+            os: ubuntu-latest
 
     needs: [build, draft-release]
     runs-on: ubuntu-latest
