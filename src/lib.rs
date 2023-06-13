@@ -6,6 +6,27 @@ use dialoguer::{console::Term, theme::ColorfulTheme, Input, Select};
 use std::{error::Error, process::Command};
 use structopt::StructOpt;
 
+pub fn run() -> Result<(), Box<dyn Error>> {
+    // コマンドライン引数解釈
+    let opt = parse_cli_args();
+
+    // gitコマンド生成
+    let branch_info = input_branch_into()?;
+    let branch_name = branch_info.generate_branch_name();
+    let git_command = branch_info.generate_git_command();
+
+    println!("コマンド: $ {}", git_command);
+
+    // コマンド実行
+    if !opt.execute {
+        return Ok(());
+    };
+    execute_git_command(&branch_name, &git_command)?;
+
+    Ok(())
+}
+
+/// コマンドライン引数
 #[derive(Debug, StructOpt)]
 #[structopt(name = "Sample CLI Rust", about = "サンプルのRustCLIアプリケーション")]
 struct Opt {
@@ -28,11 +49,47 @@ impl Opt {
     }
 }
 
-pub fn run() -> Result<(), Box<dyn Error>> {
-    // コマンドライン引数の解析
+/// コマンドライン引数の解釈
+fn parse_cli_args() -> Opt {
     let opt = Opt::from_args();
     opt.debug(|| println!("{:#?}", opt));
 
+    opt
+}
+
+/// ブランチ情報
+struct BranchInfo {
+    prefix: String,
+    reference: String,
+    description: String,
+    start_branch: String,
+}
+impl BranchInfo {
+    /// ブランチ名を生成する
+    fn generate_branch_name(&self) -> String {
+        if !self.reference.is_empty() {
+            format!("{}/{}/{}", self.prefix, self.reference, self.description)
+        } else {
+            format!("{}/{}", self.prefix, self.description)
+        }
+    }
+
+    /// gitコマンドを生成する
+    fn generate_git_command(&self) -> String {
+        if !self.start_branch.is_empty() {
+            format!(
+                "git checkout -b {} {}",
+                self.generate_branch_name(),
+                self.start_branch
+            )
+        } else {
+            format!("git checkout -b {}", self.generate_branch_name())
+        }
+    }
+}
+
+/// ブランチ情報をインタラクティブに入力
+fn input_branch_into() -> Result<BranchInfo, Box<dyn Error>> {
     // プレフィックス選択
     let prefiexes = vec![
         "feat: 新機能追加",
@@ -75,47 +132,64 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         .allow_empty(true)
         .interact_text()?;
 
-    // ブランチ名生成
-    let branch_name = if !reference.is_empty() {
-        format!("{}/{}/{}", prefix, reference, description)
-    } else {
-        format!("{}/{}", prefix, description)
-    };
+    Ok(BranchInfo {
+        prefix,
+        reference,
+        description,
+        start_branch,
+    })
+}
 
-    // gitコマンド生成
-    let git_command = if !start_branch.is_empty() {
-        format!("git checkout -b {} {}", branch_name, start_branch)
-    } else {
-        format!("git checkout -b {}", branch_name)
-    };
-
-    println!("コマンド: $ {}", git_command);
-
-    // コマンド実行
-    if !opt.execute {
-        return Ok(());
-    };
-
+/// gitコマンドを実行する
+fn execute_git_command(branch_name: &str, git_command: &str) -> Result<(), Box<dyn Error>> {
     let output = if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .args(["/C", git_command.as_str()])
-            .output()
+        Command::new("cmd").args(["/C", git_command]).output()
     } else {
-        Command::new("sh")
-            .arg("-c")
-            .arg(git_command.as_str())
-            .output()
+        Command::new("sh").arg("-c").arg(git_command).output()
     };
+
     if let Err(e) = output {
         return Err(From::from(format!("コマンド実行エラー: {}", e)));
-    } else {
-        println!("新しいブランチを作成しました: {}", branch_name);
     }
+    println!("新しいブランチを作成しました: {}", branch_name);
 
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
-    // use super::*;
+    #[test]
+    fn test_branch_info() {
+        let branch_info = super::BranchInfo {
+            prefix: "feat".to_string(),
+            reference: "issue-1".to_string(),
+            description: "新機能追加".to_string(),
+            start_branch: "origin/main".to_string(),
+        };
+
+        assert_eq!(
+            branch_info.generate_branch_name(),
+            "feat/issue-1/新機能追加"
+        );
+        assert_eq!(
+            branch_info.generate_git_command(),
+            "git checkout -b feat/issue-1/新機能追加 origin/main"
+        );
+
+        let branch_info_without_option = super::BranchInfo {
+            prefix: "feat".to_string(),
+            reference: "".to_string(),
+            description: "新機能追加".to_string(),
+            start_branch: "".to_string(),
+        };
+
+        assert_eq!(
+            branch_info_without_option.generate_branch_name(),
+            "feat/新機能追加"
+        );
+        assert_eq!(
+            branch_info_without_option.generate_git_command(),
+            "git checkout -b feat/新機能追加"
+        );
+    }
 }
